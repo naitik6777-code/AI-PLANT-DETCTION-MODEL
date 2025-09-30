@@ -1,0 +1,39 @@
+import streamlit as st
+from PIL import Image
+import torch
+from torchvision import transforms
+
+# --- Load Model ---
+@st.cache_resource
+def load_model():
+    try:
+        model = torch.load("model/plant_model.pth", map_location="cpu")
+        model.eval()
+        return model
+    except:
+        st.warning("Model not found! Upload your model to the 'model/' folder.")
+        return None
+
+model = load_model()
+
+# --- Preprocessing ---
+transform = transforms.Compose([
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+])
+
+# --- Streamlit UI ---
+st.title("🌱 Plant Detection AI")
+st.write("Upload an image of a plant to detect its species!")
+
+uploaded_file = st.file_uploader("Upload image", type=["jpg", "jpeg", "png"])
+
+if uploaded_file is not None and model is not None:
+    image = Image.open(uploaded_file)
+    st.image(image, caption="Uploaded Image", use_container_width=True)
+
+    img_tensor = transform(image).unsqueeze(0)
+    with torch.no_grad():
+        outputs = model(img_tensor)
+        _, predicted = outputs.max(1)
+        st.success(f"Prediction: **{predicted.item()}**")
